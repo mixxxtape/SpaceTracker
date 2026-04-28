@@ -1,0 +1,6 @@
+@SpaceTrackerAPIWebApp_HostAddress = http://localhost:5239
+
+GET {{SpaceTrackerAPIWebApp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
