@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SpaceTrackerApp.Services;
+using SpaceTrackerAPIWebApp.Services;
 
-namespace SpaceTrackerApp.Controllers
+namespace SpaceTrackerAPIWebApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -14,22 +14,34 @@ namespace SpaceTrackerApp.Controllers
             _issService = issService;
         }
 
-        // GET api/iss/position
         [HttpGet("position")]
         public async Task<IActionResult> GetPosition()
         {
-            var result = await _issService.GetPositionAsync();
-            return Ok(result);
+            try
+            {
+                var result = await _issService.GetPositionAsync();
+                return Content(result, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Помилка отримання позиції МКС: {ex.Message}");
+            }
         }
 
-        // GET api/iss/pass?lat=50.45&lon=30.52
         [HttpGet("pass")]
         public async Task<IActionResult> GetPassTimes(
             [FromQuery] double lat,
             [FromQuery] double lon)
         {
-            var result = await _issService.GetPassTimesAsync(lat, lon);
-            return Ok(result);
+            try
+            {
+                var result = await _issService.GetPassTimesAsync(lat, lon);
+                return Content(result, "application/json");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Помилка отримання часу прольоту: {ex.Message}");
+            }
         }
     }
 }

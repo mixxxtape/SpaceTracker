@@ -1,22 +1,24 @@
 using Microsoft.EntityFrameworkCore;
-using SpaceTrackerApp.Models;
-using SpaceTrackerApp.Services;
+using SpaceTrackerAPIWebApp.Models;
+using SpaceTrackerAPIWebApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Підключення БД
-builder.Services.AddDbContext<SpaceTrackerContext>(option =>
-    option.UseNpgsql(
+builder.Services.AddDbContext<SpaceTrackerContext>(options =>
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Додаємо контролери
-builder.Services.AddControllersWithViews();
-
-// Додаємо HttpClient для NASA та ISS сервісів
+builder.Services.AddControllers();
 builder.Services.AddHttpClient<NasaService>();
 builder.Services.AddHttpClient<IssService>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SpaceTrackerContext>();
+    db.Database.EnsureCreated();
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -25,15 +27,10 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
+app.MapControllers();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-});
-
-app.UseDefaultFiles();
-app.UseStaticFiles();
 app.Run();

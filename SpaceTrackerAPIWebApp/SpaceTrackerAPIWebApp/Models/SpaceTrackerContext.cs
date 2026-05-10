@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using SpaceTrackerApp.Models;
 
-namespace SpaceTrackerApp.Models
+namespace SpaceTrackerAPIWebApp.Models
 {
     public class SpaceTrackerContext : DbContext
     {
@@ -11,7 +12,6 @@ namespace SpaceTrackerApp.Models
         public SpaceTrackerContext(DbContextOptions<SpaceTrackerContext> options)
             : base(options)
         {
-            Database.EnsureCreated();
         }
     }
 }

@@ -2,19 +2,172 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>🚀 Space Tracker</h1>
+    <!-- Stars background -->
+    <div class="stars" id="stars"></div>
 
-    <div id="apod-section">
-        <h2 id="apod-title"></h2>
-        <img id="apod-image" src="" alt="Фото дня">
-        <p id="apod-description"></p>
-        <button onclick="saveFavorite()">⭐ Зберегти</button>
+    <!-- Auth overlay -->
+    <div id="auth-overlay" class="overlay active">
+        <div class="auth-box">
+            <div class="auth-logo">⬡ SPACE TRACKER</div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="showTab('login')">УВІЙТИ</button>
+                <button class="auth-tab" onclick="showTab('register')">РЕЄСТРАЦІЯ</button>
+            </div>
+
+            <div id="login-form">
+                <div class="field-group">
+                    <label>EMAIL</label>
+                    <input type="email" id="login-email" placeholder="pilot@space.ua">
+                </div>
+                <div class="field-group">
+                    <label>ПАРОЛЬ</label>
+                    <input type="password" id="login-password" placeholder="••••••••">
+                </div>
+                <button class="btn-primary" onclick="login()">УВІЙТИ В СИСТЕМУ</button>
+                <button class="btn-ghost" onclick="continueAsGuest()">ПРОДОВЖИТИ ЯК ГІСТЬ</button>
+            </div>
+
+            <div id="register-form" style="display:none">
+                <div class="field-group">
+                    <label>ІМ'Я ПІЛОТА</label>
+                    <input type="text" id="reg-username" placeholder="Cosmonauta">
+                </div>
+                <div class="field-group">
+                    <label>EMAIL</label>
+                    <input type="email" id="reg-email" placeholder="pilot@space.ua">
+                </div>
+                <div class="field-group">
+                    <label>ПАРОЛЬ</label>
+                    <input type="password" id="reg-password" placeholder="••••••••">
+                </div>
+                <button class="btn-primary" onclick="register()">ЗАРЕЄСТРУВАТИСЬ</button>
+            </div>
+
+            <div id="auth-msg" class="auth-msg"></div>
+        </div>
     </div>
 
-    <script src="js/apod.js"></script>
+    <!-- Main App -->
+    <div id="app" style="display:none">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-logo">⬡ SPACE TRACKER</div>
+            <div class="nav-links">
+                <button class="nav-btn active" onclick="showSection('apod')">📷 ФОТО ДНЯ</button>
+                <button class="nav-btn" onclick="showSection('asteroids')">☄️ АСТЕРОЇДИ</button>
+                <button class="nav-btn" onclick="showSection('iss')">🛸 МКС</button>
+                <button class="nav-btn" onclick="showSection('favorites')">⭐ УЛЮБЛЕНІ</button>
+            </div>
+            <div class="nav-user">
+                <span id="user-label">ГІСТЬ</span>
+                <button class="btn-logout" onclick="logout()">ВИЙТИ</button>
+            </div>
+        </nav>
+
+        <!-- APOD Section -->
+        <section id="section-apod" class="section active">
+            <div class="section-header">
+                <h2>АСТРОНОМІЧНЕ ФОТО ДНЯ</h2>
+                <div class="date-picker-row">
+                    <input type="date" id="apod-date" onchange="loadApod()">
+                    <button class="btn-secondary" onclick="loadApod()">ОНОВИТИ</button>
+                </div>
+            </div>
+            <div id="apod-loading" class="loading-ring"></div>
+            <div id="apod-content" class="apod-card" style="display:none">
+                <div class="apod-img-wrap">
+                    <img id="apod-image" src="" alt="APOD">
+                    <div class="apod-overlay">
+                        <button class="btn-fav" id="fav-btn" onclick="toggleFavorite()">⭐ ЗБЕРЕГТИ</button>
+                    </div>
+                </div>
+                <div class="apod-info">
+                    <h3 id="apod-title"></h3>
+                    <p id="apod-date-display" class="apod-meta"></p>
+                    <p id="apod-description" class="apod-desc"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Asteroids Section -->
+        <section id="section-asteroids" class="section">
+            <div class="section-header">
+                <h2>БЛИЗЬКІ КОСМІЧНІ ОБ'ЄКТИ</h2>
+                <div class="date-picker-row">
+                    <input type="date" id="ast-start" placeholder="Від">
+                    <input type="date" id="ast-end" placeholder="До">
+                    <button class="btn-secondary" onclick="loadAsteroids()">ЗАСТОСУВАТИ ФІЛЬТР</button>
+                </div>
+            </div>
+            <div id="asteroids-loading" class="loading-ring"></div>
+            <div id="asteroids-list" class="asteroids-grid"></div>
+        </section>
+
+        <!-- ISS Section -->
+        <section id="section-iss" class="section">
+            <div class="section-header">
+                <h2>МКС — ВІДСТЕЖЕННЯ</h2>
+                <button class="btn-secondary" onclick="refreshIss()">↻ ОНОВИТИ ПОЗИЦІЮ</button>
+            </div>
+            <div class="iss-layout">
+                <div id="iss-map" class="iss-map"></div>
+                <div class="iss-panel">
+                    <div class="iss-stat-box">
+                        <div class="iss-stat-label">ШИРОТА</div>
+                        <div class="iss-stat-value" id="iss-lat">—</div>
+                    </div>
+                    <div class="iss-stat-box">
+                        <div class="iss-stat-label">ДОВГОТА</div>
+                        <div class="iss-stat-value" id="iss-lon">—</div>
+                    </div>
+                    <div class="iss-stat-box">
+                        <div class="iss-stat-label">ШВИДКІСТЬ</div>
+                        <div class="iss-stat-value" id="iss-speed">—</div>
+                    </div>
+                    <div class="iss-stat-box">
+                        <div class="iss-stat-label">ВИСОТА</div>
+                        <div class="iss-stat-value" id="iss-alt">—</div>
+                    </div>
+                    <div class="pass-section">
+                        <h4>ЧАС ПРОЛЬОТУ НАД КООРДИНАТОЮ</h4>
+                        <div class="field-group">
+                            <label>ШИРОТА</label>
+                            <input type="number" id="pass-lat" value="50.45" step="0.01">
+                        </div>
+                        <div class="field-group">
+                            <label>ДОВГОТА</label>
+                            <input type="number" id="pass-lon" value="30.52" step="0.01">
+                        </div>
+                        <button class="btn-secondary" onclick="getPassTimes()">РОЗРАХУВАТИ</button>
+                        <div id="pass-result" class="pass-result"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Favorites Section -->
+        <section id="section-favorites" class="section">
+            <div class="section-header">
+                <h2>МОЯ КОЛЕКЦІЯ</h2>
+            </div>
+            <div id="favorites-loading" class="loading-ring"></div>
+            <div id="favorites-grid" class="favorites-grid"></div>
+            <div id="no-favorites" class="empty-state" style="display:none">
+                <div class="empty-icon">🌌</div>
+                <p>Колекція порожня. Збережіть фото з розділу "Фото дня"</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>

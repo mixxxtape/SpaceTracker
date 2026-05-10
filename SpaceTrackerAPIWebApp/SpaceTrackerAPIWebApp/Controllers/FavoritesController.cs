@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SpaceTrackerAPIWebApp.Models;
 using SpaceTrackerApp.Models;
 
 namespace SpaceTrackerApp.Controllers
@@ -15,7 +16,6 @@ namespace SpaceTrackerApp.Controllers
             _context = context;
         }
 
-        // GET api/favorites
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -23,7 +23,6 @@ namespace SpaceTrackerApp.Controllers
             return Ok(favorites);
         }
 
-        // GET api/favorites/5
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -32,7 +31,6 @@ namespace SpaceTrackerApp.Controllers
             return Ok(favorite);
         }
 
-        // POST api/favorites
         [HttpPost]
         public async Task<IActionResult> Add(Favorite favorite)
         {
@@ -41,7 +39,6 @@ namespace SpaceTrackerApp.Controllers
             _context.Favorites.Add(favorite);
             await _context.SaveChangesAsync();
 
-            // Зберігаємо в історію
             var history = new FavoriteHistory
             {
                 FavoriteId = favorite.Id,
@@ -54,7 +51,6 @@ namespace SpaceTrackerApp.Controllers
             return Ok(favorite);
         }
 
-        // PUT api/favorites/5
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, Favorite favorite)
         {
@@ -68,7 +64,6 @@ namespace SpaceTrackerApp.Controllers
             return Ok(existing);
         }
 
-        // DELETE api/favorites/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

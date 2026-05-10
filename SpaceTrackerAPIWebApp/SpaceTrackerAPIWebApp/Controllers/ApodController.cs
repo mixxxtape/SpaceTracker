@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SpaceTrackerApp.Services;
+using SpaceTrackerAPIWebApp.Services;
 
-namespace SpaceTrackerApp.Controllers
+namespace SpaceTrackerAPIWebApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -14,19 +14,18 @@ namespace SpaceTrackerApp.Controllers
             _nasaService = nasaService;
         }
 
-        // GET api/apod
         [HttpGet]
-        public async Task<IActionResult> Get([FromQuery] string date = null)
+        public async Task<IActionResult> Get([FromQuery] string? date = null)
         {
             try
             {
                 var result = await _nasaService.GetApodAsync(date);
-                return Ok(result);
+                return Content(result, "application/json");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, "Помилка отримання даних NASA");
+                return StatusCode(500, $"Помилка отримання даних NASA: {ex.Message}");
             }
         }
     }
-}
+}  

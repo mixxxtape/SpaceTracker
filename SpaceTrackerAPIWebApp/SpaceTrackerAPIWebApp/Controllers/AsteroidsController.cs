@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using SpaceTrackerApp.Services;
+using SpaceTrackerAPIWebApp.Services;
 
-namespace SpaceTrackerApp.Controllers
+namespace SpaceTrackerAPIWebApp.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -14,7 +14,6 @@ namespace SpaceTrackerApp.Controllers
             _nasaService = nasaService;
         }
 
-        // GET api/asteroids?startDate=2024-01-01&endDate=2024-01-07
         [HttpGet]
         public async Task<IActionResult> Get(
             [FromQuery] string startDate,
@@ -22,13 +21,12 @@ namespace SpaceTrackerApp.Controllers
         {
             try
             {
-                var result = await _nasaService
-                    .GetAsteroidsAsync(startDate, endDate);
-                return Ok(result);
+                var result = await _nasaService.GetAsteroidsAsync(startDate, endDate);
+                return Content(result, "application/json");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, "Помилка отримання даних про астероїди");
+                return StatusCode(500, $"Помилка отримання даних про астероїди: {ex.Message}");
             }
         }
     }
