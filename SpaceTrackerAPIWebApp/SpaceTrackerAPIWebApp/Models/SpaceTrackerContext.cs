@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SpaceTrackerApp.Models;
 
-namespace SpaceTrackerAPIWebApp.Models
+namespace SpaceTrackerApp.Models
 {
     public class SpaceTrackerContext : DbContext
     {

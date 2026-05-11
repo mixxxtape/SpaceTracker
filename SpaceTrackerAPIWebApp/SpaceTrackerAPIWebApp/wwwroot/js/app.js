@@ -23,7 +23,28 @@ let issInterval = null;
     }
 })();
 
+// ===== INIT — запускаємо одразу без авторизації =====
+window.addEventListener('DOMContentLoaded', () => {
+    currentUser = { id: 0, username: 'ГІСТЬ', email: '' };
+    document.getElementById('auth-overlay').classList.remove('active');
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-label').textContent = 'ГІСТЬ';
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('apod-date').value = today;
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    document.getElementById('ast-start').value = weekAgo;
+    document.getElementById('ast-end').value = today;
+
+    loadApod();
+    initIssMap();
+});
+
 // ===== AUTH =====
+function showAuthModal() {
+    document.getElementById('auth-overlay').classList.add('active');
+}
+
 function showTab(tab) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
@@ -36,27 +57,16 @@ async function login() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     const msg = document.getElementById('auth-msg');
-
     if (!email || !password) { msg.textContent = 'Заповніть всі поля'; return; }
-
     try {
         const res = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        if (res.ok) {
-            const user = await res.json();
-            setUser(user);
-        } else {
-            const err = await res.text();
-            msg.textContent = err || 'Невірний email або пароль';
-        }
-    } catch {
-        // fallback for demo without real auth
-        msg.textContent = 'Помилка з\'єднання — вхід як гість';
-        setTimeout(() => continueAsGuest(), 1000);
-    }
+        if (res.ok) { setUser(await res.json()); }
+        else { msg.textContent = await res.text() || 'Невірний email або пароль'; }
+    } catch { msg.textContent = 'Сервер недоступний'; }
 }
 
 async function register() {
@@ -64,56 +74,50 @@ async function register() {
     const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
     const msg = document.getElementById('auth-msg');
-
     if (!username || !email || !password) { msg.textContent = 'Заповніть всі поля'; return; }
-
     try {
         const res = await fetch('/api/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
-        if (res.ok) {
-            const user = await res.json();
-            setUser(user);
-        } else {
-            const err = await res.text();
-            msg.textContent = err || 'Помилка реєстрації';
-        }
-    } catch {
-        msg.textContent = 'Помилка з\'єднання — вхід як гість';
-        setTimeout(() => continueAsGuest(), 1000);
-    }
+        if (res.ok) { setUser(await res.json()); }
+        else { msg.textContent = await res.text() || 'Помилка реєстрації'; }
+    } catch { msg.textContent = 'Сервер недоступний'; }
 }
 
 function continueAsGuest() {
-    setUser({ id: 0, username: 'ГІСТЬ', email: '' });
+    document.getElementById('auth-overlay').classList.remove('active');
+    currentUser = { id: 0, username: 'ГІСТЬ', email: '' };
+    document.getElementById('user-label').textContent = 'ГІСТЬ';
+    updateAuthButton();
 }
 
 function setUser(user) {
     currentUser = user;
     document.getElementById('auth-overlay').classList.remove('active');
-    document.getElementById('app').style.display = 'block';
     document.getElementById('user-label').textContent = user.username || 'ГІСТЬ';
+    updateAuthButton();
+}
 
-    // Init default date
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('apod-date').value = today;
-    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
-    document.getElementById('ast-start').value = weekAgo;
-    document.getElementById('ast-end').value = today;
-
-    loadApod();
-    initIssMap();
+function updateAuthButton() {
+    const btn = document.getElementById('auth-btn');
+    if (!btn) return;
+    if (currentUser && currentUser.id !== 0) {
+        btn.textContent = 'ВИЙТИ';
+        btn.onclick = logout;
+    } else {
+        btn.textContent = 'УВІЙТИ';
+        btn.onclick = showAuthModal;
+    }
 }
 
 function logout() {
-    currentUser = null;
-    currentApod = null;
-    if (issInterval) clearInterval(issInterval);
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('auth-overlay').classList.add('active');
-    document.getElementById('auth-msg').textContent = '';
+    currentUser = { id: 0, username: 'ГІСТЬ', email: '' };
+    const label = document.getElementById('user-label');
+    const btn = document.getElementById('auth-btn');
+    if (label) label.textContent = 'ГІСТЬ';
+    if (btn) { btn.textContent = 'УВІЙТИ'; btn.onclick = showAuthModal; }
 }
 
 // ===== NAVIGATION =====
@@ -138,7 +142,6 @@ async function loadApod() {
     const date = document.getElementById('apod-date').value;
     showLoading('apod', true);
     document.getElementById('apod-content').style.display = 'none';
-
     try {
         const url = date ? `/api/apod?date=${date}` : '/api/apod';
         const res = await fetch(url);
@@ -152,7 +155,8 @@ async function loadApod() {
 
         const img = document.getElementById('apod-image');
         if (data.media_type === 'video') {
-            img.src = `https://img.youtube.com/vi/${extractYoutubeId(data.url)}/hqdefault.jpg`;
+            const ytId = extractYoutubeId(data.url);
+            img.src = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : '';
         } else {
             img.src = data.hdurl || data.url || '';
         }
@@ -170,6 +174,7 @@ async function loadApod() {
 }
 
 function extractYoutubeId(url) {
+    if (!url) return '';
     const m = url.match(/(?:embed\/|v=|youtu\.be\/)([^&?/]+)/);
     return m ? m[1] : '';
 }
@@ -179,7 +184,6 @@ async function toggleFavorite() {
     const btn = document.getElementById('fav-btn');
 
     if (savedFavoriteId) {
-        // remove
         try {
             await fetch(`/api/favorites/${savedFavoriteId}`, { method: 'DELETE' });
             savedFavoriteId = null;
@@ -187,12 +191,11 @@ async function toggleFavorite() {
             btn.classList.remove('saved');
         } catch (err) { console.error(err); }
     } else {
-        // add
         try {
             const body = {
                 userId: currentUser?.id || 0,
                 title: currentApod.title,
-                imageUrl: currentApod.url,
+                imageUrl: currentApod.hdurl || currentApod.url,
                 nasaDate: currentApod.date
             };
             const res = await fetch('/api/favorites', {
@@ -205,8 +208,10 @@ async function toggleFavorite() {
                 savedFavoriteId = fav.id;
                 btn.textContent = '★ ЗБЕРЕЖЕНО';
                 btn.classList.add('saved');
+            } else {
+                console.error('Помилка збереження:', await res.text());
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { console.error('Favorites error:', err); }
     }
 }
 
@@ -216,14 +221,21 @@ async function loadAsteroids() {
     const end = document.getElementById('ast-end').value;
     if (!start || !end) return;
 
+    const diffDays = (new Date(end) - new Date(start)) / 86400000;
+    const grid = document.getElementById('asteroids-list');
+
+    if (diffDays > 7) {
+        grid.innerHTML = '<p style="color:var(--accent2);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">⚠ NASA API дозволяє максимум 7 днів. Оберіть менший діапазон.</p>';
+        return;
+    }
+
     showLoading('asteroids', true);
-    document.getElementById('asteroids-list').innerHTML = '';
+    grid.innerHTML = '';
 
     try {
         const res = await fetch(`/api/asteroids?startDate=${start}&endDate=${end}`);
         const raw = await res.json();
 
-        // NASA NeoWs returns nested by date
         let asteroids = [];
         if (raw.near_earth_objects) {
             Object.values(raw.near_earth_objects).forEach(dayArr => {
@@ -233,7 +245,6 @@ async function loadAsteroids() {
             asteroids = raw;
         }
 
-        // Sort by close approach date
         asteroids.sort((a, b) => {
             const da = a.close_approach_data?.[0]?.close_approach_date || '';
             const db = b.close_approach_data?.[0]?.close_approach_date || '';
@@ -242,17 +253,15 @@ async function loadAsteroids() {
 
         showLoading('asteroids', false);
 
-        const grid = document.getElementById('asteroids-list');
         if (asteroids.length === 0) {
-            grid.innerHTML = '<p style="color:var(--text-dim);font-family:Orbitron,sans-serif;font-size:12px;">Нічого не знайдено</p>';
+            grid.innerHTML = '<p style="color:var(--text-dim);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">Нічого не знайдено для цього діапазону дат.</p>';
             return;
         }
 
-        asteroids.forEach(ast => {
-            grid.appendChild(buildAsteroidCard(ast));
-        });
+        asteroids.forEach(ast => grid.appendChild(buildAsteroidCard(ast)));
     } catch (err) {
         showLoading('asteroids', false);
+        grid.innerHTML = '<p style="color:var(--accent2);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">Помилка завантаження даних.</p>';
         console.error('Asteroids error:', err);
     }
 }
@@ -271,11 +280,7 @@ function buildAsteroidCard(ast) {
         : '—';
     const dMin = ast.estimated_diameter?.kilometers?.estimated_diameter_min;
     const dMax = ast.estimated_diameter?.kilometers?.estimated_diameter_max;
-    const diameter = dMin != null
-        ? `${(dMin * 1000).toFixed(0)}–${(dMax * 1000).toFixed(0)} м`
-        : '—';
-
-    const countdown = getCountdown(approachDate);
+    const diameter = dMin != null ? `${(dMin * 1000).toFixed(0)}–${(dMax * 1000).toFixed(0)} м` : '—';
 
     card.innerHTML = `
         <div class="asteroid-name">${ast.name || 'Невідомий'}</div>
@@ -299,7 +304,7 @@ function buildAsteroidCard(ast) {
         </div>
         <div class="countdown">
             <div class="countdown-label">ВІДЛІК ДО ЗБЛИЖЕННЯ</div>
-            <div class="countdown-timer">${countdown}</div>
+            <div class="countdown-timer">${getCountdown(approachDate)}</div>
         </div>
     `;
     return card;
@@ -307,10 +312,7 @@ function buildAsteroidCard(ast) {
 
 function getCountdown(dateStr) {
     if (!dateStr || dateStr === '—') return '—';
-    const target = new Date(dateStr);
-    const now = new Date();
-    const diff = target - now;
-
+    const diff = new Date(dateStr) - new Date();
     if (diff < 0) return 'МИНУЛО';
     const days = Math.floor(diff / 86400000);
     const hours = Math.floor((diff % 86400000) / 3600000);
@@ -322,17 +324,30 @@ function getCountdown(dateStr) {
 function initIssMap() {
     if (issMap) return;
     issMap = L.map('iss-map', { zoomControl: true, attributionControl: false }).setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
-    }).addTo(issMap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(issMap);
 
     const issIcon = L.divIcon({
         html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 0 8px #00d4ff);">🛸</div>',
-        className: '',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        className: '', iconSize: [32, 32], iconAnchor: [16, 16]
     });
     issMarker = L.marker([0, 0], { icon: issIcon }).addTo(issMap);
+
+    // Клік на карті — встановлює координати і розраховує проліт
+    let clickMarker = null;
+    issMap.on('click', function (e) {
+        const lat = e.latlng.lat.toFixed(4);
+        const lon = e.latlng.lng.toFixed(4);
+        document.getElementById('pass-lat').value = lat;
+        document.getElementById('pass-lon').value = lon;
+
+        if (clickMarker) issMap.removeLayer(clickMarker);
+        clickMarker = L.circleMarker([lat, lon], {
+            radius: 8, color: '#ff6b35', fillColor: '#ff6b35', fillOpacity: 0.7
+        }).addTo(issMap).bindPopup(`📍 ${lat}, ${lon}`).openPopup();
+
+        getPassTimes();
+    });
+
     refreshIss();
 }
 
@@ -340,24 +355,21 @@ async function refreshIss() {
     try {
         const res = await fetch('/api/iss/position');
         const data = await res.json();
-
         const lat = parseFloat(data.latitude ?? data.lat ?? 0);
         const lon = parseFloat(data.longitude ?? data.lon ?? 0);
-        const speed = data.velocity ? parseFloat(data.velocity).toFixed(0) + ' км/год' : '—';
-        const alt = data.altitude ? parseFloat(data.altitude).toFixed(1) + ' км' : '—';
 
         document.getElementById('iss-lat').textContent = lat.toFixed(4) + '°';
         document.getElementById('iss-lon').textContent = lon.toFixed(4) + '°';
-        document.getElementById('iss-speed').textContent = speed;
-        document.getElementById('iss-alt').textContent = alt;
+        document.getElementById('iss-speed').textContent = data.velocity
+            ? parseFloat(data.velocity).toFixed(0) + ' км/год' : '—';
+        document.getElementById('iss-alt').textContent = data.altitude
+            ? parseFloat(data.altitude).toFixed(1) + ' км' : '—';
 
         if (issMarker) {
             issMarker.setLatLng([lat, lon]);
             issMap.panTo([lat, lon], { animate: true, duration: 1 });
         }
-    } catch (err) {
-        console.error('ISS error:', err);
-    }
+    } catch (err) { console.error('ISS error:', err); }
 }
 
 async function getPassTimes() {
@@ -369,21 +381,31 @@ async function getPassTimes() {
     try {
         const res = await fetch(`/api/iss/pass?lat=${lat}&lon=${lon}`);
         const data = await res.json();
-
         const passes = data.response || data.passes || [];
+
         if (!passes.length) {
-            result.innerHTML = '<span style="color:var(--text-dim)">Дані недоступні</span>';
+            result.innerHTML = generateApproxPassTimes();
             return;
         }
-
         result.innerHTML = passes.slice(0, 5).map(p => {
             const rise = new Date((p.risetime || p.rise_time) * 1000).toLocaleString('uk-UA');
             const dur = p.duration ? `${p.duration} с` : '';
             return `<div class="pass-time-row"><span>${rise}</span><span style="color:var(--accent)">${dur}</span></div>`;
         }).join('');
-    } catch (err) {
-        result.innerHTML = '<span style="color:var(--text-dim)">Сервіс тимчасово недоступний</span>';
+    } catch {
+        result.innerHTML = generateApproxPassTimes();
     }
+}
+
+function generateApproxPassTimes() {
+    const period = 92 * 60 * 1000;
+    const now = Date.now();
+    let html = '<div style="color:var(--text-dim);font-size:11px;margin-bottom:8px;">⚠ Приблизні дані (сервіс прольотів недоступний)</div>';
+    for (let i = 1; i <= 5; i++) {
+        const t = new Date(now + i * period).toLocaleString('uk-UA');
+        html += `<div class="pass-time-row"><span>${t}</span><span style="color:var(--accent)">~90 с</span></div>`;
+    }
+    return html;
 }
 
 // ===== FAVORITES =====
@@ -394,26 +416,23 @@ async function loadFavorites() {
 
     try {
         const res = await fetch('/api/favorites');
+        if (!res.ok) throw new Error('API error');
         const favs = await res.json();
 
         showLoading('favorites', false);
         const grid = document.getElementById('favorites-grid');
 
-        // Filter by current user if logged in (not guest)
-        const userFavs = currentUser?.id
-            ? favs.filter(f => f.userId === currentUser.id || f.userId === 0)
-            : favs;
-
-        if (userFavs.length === 0) {
+        if (!favs.length) {
             document.getElementById('no-favorites').style.display = 'block';
             return;
         }
 
-        userFavs.forEach(fav => {
+        favs.forEach(fav => {
             const card = document.createElement('div');
             card.className = 'fav-card';
             card.innerHTML = `
-                <img class="fav-img" src="${fav.imageUrl || ''}" alt="${fav.title}" loading="lazy">
+                <img class="fav-img" src="${fav.imageUrl || ''}" alt="${fav.title}" loading="lazy"
+                     onerror="this.style.background='#0c1527'">
                 <div class="fav-body">
                     <div class="fav-title">${fav.title || 'Без назви'}</div>
                     <div class="fav-date">${fav.nasaDate || ''}</div>
@@ -424,6 +443,7 @@ async function loadFavorites() {
         });
     } catch (err) {
         showLoading('favorites', false);
+        document.getElementById('no-favorites').style.display = 'block';
         console.error('Favorites error:', err);
     }
 }
@@ -442,15 +462,12 @@ async function deleteFavorite(id, btn) {
 }
 
 function checkEmpty() {
-    const grid = document.getElementById('favorites-grid');
-    if (!grid.children.length) {
+    if (!document.getElementById('favorites-grid').children.length) {
         document.getElementById('no-favorites').style.display = 'block';
     }
 }
 
-// ===== HELPERS =====
 function showLoading(section, show) {
     const el = document.getElementById(section + '-loading');
-    if (!el) return;
-    el.classList.toggle('active', show);
+    if (el) el.classList.toggle('active', show);
 }

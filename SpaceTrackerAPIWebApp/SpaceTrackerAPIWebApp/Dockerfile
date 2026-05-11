@@ -17,6 +17,7 @@ RUN groupadd --system appgroup && \
     useradd --system --gid appgroup appuser
 
 COPY --from=build /app/publish .
+RUN find /app -name "*.br" -delete && find /app -name "*.gz" -delete
 RUN chown -R appuser:appgroup /app
 
 USER appuser

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SpaceTrackerAPIWebApp.Models;
 using SpaceTrackerApp.Models;
 
 namespace SpaceTrackerApp.Controllers
@@ -32,10 +31,11 @@ namespace SpaceTrackerApp.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Add(Favorite favorite)
+        public async Task<IActionResult> Add([FromBody] Favorite favorite)
         {
-            favorite.SavedAt = DateTime.Now;
-            favorite.UpdatedAt = DateTime.Now;
+            favorite.SavedAt = DateTime.UtcNow;
+            favorite.UpdatedAt = DateTime.UtcNow;
+            favorite.User = null;
             _context.Favorites.Add(favorite);
             await _context.SaveChangesAsync();
 
@@ -43,7 +43,7 @@ namespace SpaceTrackerApp.Controllers
             {
                 FavoriteId = favorite.Id,
                 Action = "Added",
-                ChangedAt = DateTime.Now
+                ChangedAt = DateTime.UtcNow
             };
             _context.FavoriteHistories.Add(history);
             await _context.SaveChangesAsync();
@@ -58,7 +58,7 @@ namespace SpaceTrackerApp.Controllers
             if (existing == null) return NotFound();
 
             existing.Title = favorite.Title;
-            existing.UpdatedAt = DateTime.Now;
+            existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return Ok(existing);
@@ -74,7 +74,7 @@ namespace SpaceTrackerApp.Controllers
             {
                 FavoriteId = id,
                 Action = "Deleted",
-                ChangedAt = DateTime.Now
+                ChangedAt = DateTime.UtcNow
             };
             _context.FavoriteHistories.Add(history);
             _context.Favorites.Remove(favorite);

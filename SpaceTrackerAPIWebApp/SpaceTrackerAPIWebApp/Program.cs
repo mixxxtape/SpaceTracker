@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using SpaceTrackerAPIWebApp.Models;
 using SpaceTrackerAPIWebApp.Services;
+using SpaceTrackerApp.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -21,7 +21,7 @@ namespace SpaceTrackerApp.Models
         public DateTime SavedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
-        public virtual User User { get; set; }
+        public virtual User? User { get; set; }
         public virtual ICollection<FavoriteHistory> History { get; set; }
     }
 }
