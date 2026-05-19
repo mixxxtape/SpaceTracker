@@ -1,29 +1,23 @@
-﻿// ===== STATE =====
-let currentUser = null;
+﻿let currentUser = null;
 let currentApod = null;
 let savedFavoriteId = null;
 let issMap = null;
 let issMarker = null;
 let issInterval = null;
+let issTrackPoints = [];
+let issTrackLine = null;
 
-// ===== STARS BACKGROUND =====
 (function createStars() {
     const container = document.getElementById('stars');
     for (let i = 0; i < 180; i++) {
         const s = document.createElement('div');
         s.className = 'star';
         const size = Math.random() * 2.5 + 0.5;
-        s.style.cssText = `
-            width:${size}px; height:${size}px;
-            top:${Math.random() * 100}%; left:${Math.random() * 100}%;
-            --d:${(Math.random() * 4 + 2).toFixed(1)}s;
-            --delay:-${(Math.random() * 4).toFixed(1)}s;
-        `;
+        s.style.cssText = `width:${size}px;height:${size}px;top:${Math.random() * 100}%;left:${Math.random() * 100}%;--d:${(Math.random() * 4 + 2).toFixed(1)}s;--delay:-${(Math.random() * 4).toFixed(1)}s;`;
         container.appendChild(s);
     }
 })();
 
-// ===== INIT — запускаємо одразу без авторизації =====
 window.addEventListener('DOMContentLoaded', () => {
     currentUser = { id: 0, username: 'ГІСТЬ', email: '' };
     document.getElementById('auth-overlay').classList.remove('active');
@@ -40,7 +34,6 @@ window.addEventListener('DOMContentLoaded', () => {
     initIssMap();
 });
 
-// ===== AUTH =====
 function showAuthModal() {
     document.getElementById('auth-overlay').classList.add('active');
 }
@@ -60,8 +53,7 @@ async function login() {
     if (!email || !password) { msg.textContent = 'Заповніть всі поля'; return; }
     try {
         const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
         if (res.ok) { setUser(await res.json()); }
@@ -77,8 +69,7 @@ async function register() {
     if (!username || !email || !password) { msg.textContent = 'Заповніть всі поля'; return; }
     try {
         const res = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
         if (res.ok) { setUser(await res.json()); }
@@ -114,13 +105,15 @@ function updateAuthButton() {
 
 function logout() {
     currentUser = { id: 0, username: 'ГІСТЬ', email: '' };
-    const label = document.getElementById('user-label');
-    const btn = document.getElementById('auth-btn');
-    if (label) label.textContent = 'ГІСТЬ';
-    if (btn) { btn.textContent = 'УВІЙТИ'; btn.onclick = showAuthModal; }
+    savedFavoriteId = null;
+    document.getElementById('user-label').textContent = 'ГІСТЬ';
+    const favBtn = document.getElementById('fav-btn');
+    if (favBtn) { favBtn.textContent = '⭐ ЗБЕРЕГТИ'; favBtn.classList.remove('saved'); }
+    document.getElementById('favorites-grid').innerHTML = '';
+    document.getElementById('no-favorites').style.display = 'none';
+    updateAuthButton();
 }
 
-// ===== NAVIGATION =====
 function showSection(name) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -131,13 +124,12 @@ function showSection(name) {
     if (name === 'iss') {
         setTimeout(() => { if (issMap) issMap.invalidateSize(); }, 100);
         refreshIss();
-        if (!issInterval) issInterval = setInterval(refreshIss, 10000);
+        if (!issInterval) issInterval = setInterval(refreshIss, 5000);
     } else {
         if (issInterval) { clearInterval(issInterval); issInterval = null; }
     }
 }
 
-// ===== APOD =====
 async function loadApod() {
     const date = document.getElementById('apod-date').value;
     showLoading('apod', true);
@@ -158,12 +150,25 @@ async function loadApod() {
             const ytId = extractYoutubeId(data.url);
             img.src = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : '';
         } else {
-            img.src = data.hdurl || data.url || '';
+            img.src = data.url || '';
         }
 
         const favBtn = document.getElementById('fav-btn');
         favBtn.textContent = '⭐ ЗБЕРЕГТИ';
         favBtn.classList.remove('saved');
+
+        if (currentUser && currentUser.id !== 0) {
+            try {
+                const favRes = await fetch('/api/favorites');
+                const favs = await favRes.json();
+                const existing = favs.find(f => f.nasaDate === data.date && f.userId === currentUser.id);
+                if (existing) {
+                    savedFavoriteId = existing.id;
+                    favBtn.textContent = '★ ЗБЕРЕЖЕНО';
+                    favBtn.classList.add('saved');
+                }
+            } catch { }
+        }
 
         showLoading('apod', false);
         document.getElementById('apod-content').style.display = 'grid';
@@ -183,49 +188,68 @@ async function toggleFavorite() {
     if (!currentApod) return;
     const btn = document.getElementById('fav-btn');
 
+    if (!currentUser || currentUser.id === 0) {
+        showAuthModal();
+        return;
+    }
+
     if (savedFavoriteId) {
         try {
-            await fetch(`/api/favorites/${savedFavoriteId}`, { method: 'DELETE' });
-            savedFavoriteId = null;
-            btn.textContent = '⭐ ЗБЕРЕГТИ';
-            btn.classList.remove('saved');
-        } catch (err) { console.error(err); }
-    } else {
-        try {
-            const body = {
-                userId: currentUser?.id || 0,
-                title: currentApod.title,
-                imageUrl: currentApod.hdurl || currentApod.url,
-                nasaDate: currentApod.date
-            };
-            const res = await fetch('/api/favorites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
+            const res = await fetch(`/api/favorites/${savedFavoriteId}`, { method: 'DELETE' });
             if (res.ok) {
-                const fav = await res.json();
-                savedFavoriteId = fav.id;
-                btn.textContent = '★ ЗБЕРЕЖЕНО';
-                btn.classList.add('saved');
-            } else {
-                console.error('Помилка збереження:', await res.text());
+                savedFavoriteId = null;
+                btn.textContent = '⭐ ЗБЕРЕГТИ';
+                btn.classList.remove('saved');
             }
-        } catch (err) { console.error('Favorites error:', err); }
+        } catch (err) { console.error(err); }
+        return;
     }
+
+    try {
+        const checkRes = await fetch('/api/favorites');
+        const favs = await checkRes.json();
+        const existing = favs.find(f => f.nasaDate === currentApod.date && f.userId === currentUser.id);
+        if (existing) {
+            savedFavoriteId = existing.id;
+            btn.textContent = '★ ЗБЕРЕЖЕНО';
+            btn.classList.add('saved');
+            return;
+        }
+    } catch { }
+
+    try {
+        const body = {
+            userId: currentUser.id,
+            title: currentApod.title,
+            imageUrl: currentApod.url,
+            nasaDate: currentApod.date
+        };
+        const res = await fetch('/api/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (res.ok) {
+            const fav = await res.json();
+            savedFavoriteId = fav.id;
+            btn.textContent = '★ ЗБЕРЕЖЕНО';
+            btn.classList.add('saved');
+        } else {
+            console.error('Помилка збереження:', await res.text());
+        }
+    } catch (err) { console.error('Favorites error:', err); }
 }
 
-// ===== ASTEROIDS =====
 async function loadAsteroids() {
     const start = document.getElementById('ast-start').value;
     const end = document.getElementById('ast-end').value;
     if (!start || !end) return;
 
-    const diffDays = (new Date(end) - new Date(start)) / 86400000;
+    const diff = (new Date(end) - new Date(start)) / 86400000;
     const grid = document.getElementById('asteroids-list');
 
-    if (diffDays > 7) {
-        grid.innerHTML = '<p style="color:var(--accent2);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">⚠ NASA API дозволяє максимум 7 днів. Оберіть менший діапазон.</p>';
+    if (diff > 7) {
+        grid.innerHTML = '<p style="color:var(--accent2);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">⚠ NASA API дозволяє максимум 7 днів.</p>';
         return;
     }
 
@@ -238,31 +262,29 @@ async function loadAsteroids() {
 
         let asteroids = [];
         if (raw.near_earth_objects) {
-            Object.values(raw.near_earth_objects).forEach(dayArr => {
-                asteroids = asteroids.concat(dayArr);
-            });
+            Object.values(raw.near_earth_objects).forEach(day => asteroids = asteroids.concat(day));
         } else if (Array.isArray(raw)) {
             asteroids = raw;
         }
 
         asteroids.sort((a, b) => {
-            const da = a.close_approach_data?.[0]?.close_approach_date || '';
-            const db = b.close_approach_data?.[0]?.close_approach_date || '';
+            const da = a.close_approach_data?.[0]?.close_approach_date_full || a.close_approach_data?.[0]?.close_approach_date || '';
+            const db = b.close_approach_data?.[0]?.close_approach_date_full || b.close_approach_data?.[0]?.close_approach_date || '';
             return da.localeCompare(db);
         });
 
         showLoading('asteroids', false);
 
-        if (asteroids.length === 0) {
-            grid.innerHTML = '<p style="color:var(--text-dim);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">Нічого не знайдено для цього діапазону дат.</p>';
+        if (!asteroids.length) {
+            grid.innerHTML = '<p style="color:var(--text-dim);padding:20px;">Нічого не знайдено.</p>';
             return;
         }
 
         asteroids.forEach(ast => grid.appendChild(buildAsteroidCard(ast)));
     } catch (err) {
         showLoading('asteroids', false);
-        grid.innerHTML = '<p style="color:var(--accent2);font-family:Orbitron,sans-serif;font-size:12px;padding:20px;">Помилка завантаження даних.</p>';
-        console.error('Asteroids error:', err);
+        grid.innerHTML = '<p style="color:var(--accent2);padding:20px;">Помилка завантаження.</p>';
+        console.error(err);
     }
 }
 
@@ -271,16 +293,16 @@ function buildAsteroidCard(ast) {
     card.className = 'asteroid-card' + (ast.is_potentially_hazardous_asteroid ? ' hazardous' : '');
 
     const approach = ast.close_approach_data?.[0] || {};
+    const approachDateFull = approach.close_approach_date_full || '';
     const approachDate = approach.close_approach_date || '—';
     const distKm = approach.miss_distance?.kilometers
-        ? parseFloat(approach.miss_distance.kilometers).toLocaleString('uk-UA', { maximumFractionDigits: 0 }) + ' км'
-        : '—';
+        ? parseFloat(approach.miss_distance.kilometers).toLocaleString('uk-UA', { maximumFractionDigits: 0 }) + ' км' : '—';
     const speed = approach.relative_velocity?.kilometers_per_hour
-        ? parseFloat(approach.relative_velocity.kilometers_per_hour).toLocaleString('uk-UA', { maximumFractionDigits: 0 }) + ' км/год'
-        : '—';
+        ? parseFloat(approach.relative_velocity.kilometers_per_hour).toLocaleString('uk-UA', { maximumFractionDigits: 0 }) + ' км/год' : '—';
     const dMin = ast.estimated_diameter?.kilometers?.estimated_diameter_min;
     const dMax = ast.estimated_diameter?.kilometers?.estimated_diameter_max;
     const diameter = dMin != null ? `${(dMin * 1000).toFixed(0)}–${(dMax * 1000).toFixed(0)} м` : '—';
+    const displayDate = approachDateFull || approachDate;
 
     card.innerHTML = `
         <div class="asteroid-name">${ast.name || 'Невідомий'}</div>
@@ -298,29 +320,38 @@ function buildAsteroidCard(ast) {
                 <div class="ast-stat-value" style="font-size:13px">${diameter}</div>
             </div>
             <div class="ast-stat">
-                <div class="ast-stat-label">ДАТА ЗБЛИЖЕННЯ</div>
-                <div class="ast-stat-value" style="font-size:13px">${approachDate}</div>
+                <div class="ast-stat-label">ДАТА І ЧАС</div>
+                <div class="ast-stat-value" style="font-size:11px">${displayDate}</div>
             </div>
         </div>
         <div class="countdown">
             <div class="countdown-label">ВІДЛІК ДО ЗБЛИЖЕННЯ</div>
-            <div class="countdown-timer">${getCountdown(approachDate)}</div>
+            <div class="countdown-timer">${getCountdownPrecise(approachDateFull || approachDate)}</div>
         </div>
     `;
     return card;
 }
 
-function getCountdown(dateStr) {
+function getCountdownPrecise(dateStr) {
     if (!dateStr || dateStr === '—') return '—';
-    const diff = new Date(dateStr) - new Date();
-    if (diff < 0) return 'МИНУЛО';
+    let target;
+    if (dateStr.includes('-') && dateStr.includes(':')) {
+        target = new Date(dateStr.replace(/-/g, ' '));
+        if (isNaN(target)) target = new Date(dateStr);
+    } else {
+        target = new Date(dateStr);
+    }
+    const diff = target - new Date();
+    if (isNaN(diff) || diff < 0) return 'МИНУЛО';
     const days = Math.floor(diff / 86400000);
     const hours = Math.floor((diff % 86400000) / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
-    return `${days}д ${hours}г ${mins}хв`;
+    const secs = Math.floor((diff % 60000) / 1000);
+    if (days > 0) return `${days}д ${hours}г ${mins}хв`;
+    if (hours > 0) return `${hours}г ${mins}хв ${secs}с`;
+    return `${mins}хв ${secs}с`;
 }
 
-// ===== ISS MAP =====
 function initIssMap() {
     if (issMap) return;
     issMap = L.map('iss-map', { zoomControl: true, attributionControl: false }).setView([0, 0], 2);
@@ -332,21 +363,9 @@ function initIssMap() {
     });
     issMarker = L.marker([0, 0], { icon: issIcon }).addTo(issMap);
 
-    // Клік на карті — встановлює координати і розраховує проліт
-    let clickMarker = null;
-    issMap.on('click', function (e) {
-        const lat = e.latlng.lat.toFixed(4);
-        const lon = e.latlng.lng.toFixed(4);
-        document.getElementById('pass-lat').value = lat;
-        document.getElementById('pass-lon').value = lon;
-
-        if (clickMarker) issMap.removeLayer(clickMarker);
-        clickMarker = L.circleMarker([lat, lon], {
-            radius: 8, color: '#ff6b35', fillColor: '#ff6b35', fillOpacity: 0.7
-        }).addTo(issMap).bindPopup(`📍 ${lat}, ${lon}`).openPopup();
-
-        getPassTimes();
-    });
+    issTrackLine = L.polyline([], {
+        color: '#00d4ff', weight: 2, opacity: 0.6, dashArray: '4 8'
+    }).addTo(issMap);
 
     refreshIss();
 }
@@ -365,54 +384,44 @@ async function refreshIss() {
         document.getElementById('iss-alt').textContent = data.altitude
             ? parseFloat(data.altitude).toFixed(1) + ' км' : '—';
 
-        if (issMarker) {
-            issMarker.setLatLng([lat, lon]);
-            issMap.panTo([lat, lon], { animate: true, duration: 1 });
-        }
+        if (issMarker) issMarker.setLatLng([lat, lon]);
+
+        issTrackPoints.push([lat, lon]);
+        if (issTrackPoints.length > 60) issTrackPoints.shift();
+        issTrackLine.setLatLngs(splitTrack(issTrackPoints));
     } catch (err) { console.error('ISS error:', err); }
 }
 
-async function getPassTimes() {
-    const lat = parseFloat(document.getElementById('pass-lat').value);
-    const lon = parseFloat(document.getElementById('pass-lon').value);
-    const result = document.getElementById('pass-result');
-    result.innerHTML = '<span style="color:var(--text-dim)">Завантаження...</span>';
-
-    try {
-        const res = await fetch(`/api/iss/pass?lat=${lat}&lon=${lon}`);
-        const data = await res.json();
-        const passes = data.response || data.passes || [];
-
-        if (!passes.length) {
-            result.innerHTML = generateApproxPassTimes();
-            return;
+function splitTrack(points) {
+    if (points.length < 2) return points;
+    const segments = [];
+    let current = [points[0]];
+    for (let i = 1; i < points.length; i++) {
+        if (Math.abs(points[i][1] - points[i - 1][1]) > 180) {
+            segments.push(current);
+            current = [];
         }
-        result.innerHTML = passes.slice(0, 5).map(p => {
-            const rise = new Date((p.risetime || p.rise_time) * 1000).toLocaleString('uk-UA');
-            const dur = p.duration ? `${p.duration} с` : '';
-            return `<div class="pass-time-row"><span>${rise}</span><span style="color:var(--accent)">${dur}</span></div>`;
-        }).join('');
-    } catch {
-        result.innerHTML = generateApproxPassTimes();
+        current.push(points[i]);
     }
+    segments.push(current);
+    return segments;
 }
 
-function generateApproxPassTimes() {
-    const period = 92 * 60 * 1000;
-    const now = Date.now();
-    let html = '<div style="color:var(--text-dim);font-size:11px;margin-bottom:8px;">⚠ Приблизні дані (сервіс прольотів недоступний)</div>';
-    for (let i = 1; i <= 5; i++) {
-        const t = new Date(now + i * period).toLocaleString('uk-UA');
-        html += `<div class="pass-time-row"><span>${t}</span><span style="color:var(--accent)">~90 с</span></div>`;
-    }
-    return html;
-}
-
-// ===== FAVORITES =====
 async function loadFavorites() {
     showLoading('favorites', true);
     document.getElementById('favorites-grid').innerHTML = '';
     document.getElementById('no-favorites').style.display = 'none';
+
+    if (!currentUser || currentUser.id === 0) {
+        showLoading('favorites', false);
+        document.getElementById('no-favorites').style.display = 'block';
+        document.getElementById('no-favorites').innerHTML = `
+            <div class="empty-icon">🔒</div>
+            <p>Зареєструйтесь щоб зберігати улюблені фото</p>
+            <button class="btn-primary" style="margin-top:16px;width:auto;padding:10px 32px" onclick="showAuthModal()">УВІЙТИ / ЗАРЕЄСТРУВАТИСЬ</button>
+        `;
+        return;
+    }
 
     try {
         const res = await fetch('/api/favorites');
@@ -421,13 +430,18 @@ async function loadFavorites() {
 
         showLoading('favorites', false);
         const grid = document.getElementById('favorites-grid');
+        const userFavs = favs.filter(f => f.userId === currentUser.id);
 
-        if (!favs.length) {
+        if (!userFavs.length) {
             document.getElementById('no-favorites').style.display = 'block';
+            document.getElementById('no-favorites').innerHTML = `
+                <div class="empty-icon">🌌</div>
+                <p>Колекція порожня. Збережіть фото з розділу "Фото дня"</p>
+            `;
             return;
         }
 
-        favs.forEach(fav => {
+        userFavs.forEach(fav => {
             const card = document.createElement('div');
             card.className = 'fav-card';
             card.innerHTML = `
@@ -464,6 +478,10 @@ async function deleteFavorite(id, btn) {
 function checkEmpty() {
     if (!document.getElementById('favorites-grid').children.length) {
         document.getElementById('no-favorites').style.display = 'block';
+        document.getElementById('no-favorites').innerHTML = `
+            <div class="empty-icon">🌌</div>
+            <p>Колекція порожня. Збережіть фото з розділу "Фото дня"</p>
+        `;
     }
 }
 

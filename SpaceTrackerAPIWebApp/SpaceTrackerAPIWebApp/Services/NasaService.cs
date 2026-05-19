@@ -19,6 +19,13 @@
             return await _httpClient.GetStringAsync(url);
         }
 
+        public async Task<string> GetApodRangeAsync(string startDate, string endDate)
+        {
+            var url = $"https://api.nasa.gov/planetary/apod?api_key={_apiKey}" +
+                      $"&start_date={startDate}&end_date={endDate}";
+            return await _httpClient.GetStringAsync(url);
+        }
+
         public async Task<string> GetAsteroidsAsync(string startDate, string endDate)
         {
             var url = $"https://api.nasa.gov/neo/rest/v1/feed" +
