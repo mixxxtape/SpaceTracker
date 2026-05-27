@@ -1,5 +1,4 @@
-﻿/* ===== VARIABLES ===== */
-:root {
+﻿:root {
     --bg: #03060f;
     --bg2: #070d1a;
     --bg3: #0c1527;
@@ -14,7 +13,6 @@
     --radius: 4px;
 }
 
-/* ===== RESET ===== */
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
@@ -30,7 +28,6 @@ html, body {
     overflow-x: hidden;
 }
 
-/* ===== STARS ===== */
 .stars {
     position: fixed;
     inset: 0;
@@ -56,7 +53,6 @@ html, body {
     }
 }
 
-/* ===== AUTH OVERLAY ===== */
 .overlay {
     position: fixed;
     inset: 0;
@@ -217,7 +213,6 @@ html, body {
     min-height: 20px;
 }
 
-/* ===== NAVBAR ===== */
 .navbar {
     position: fixed;
     top: 0;
@@ -306,7 +301,6 @@ html, body {
         background: rgba(255,107,53,0.15);
     }
 
-/* ===== SECTIONS ===== */
 #app {
     padding-top: 64px;
     min-height: 100vh;
@@ -396,7 +390,6 @@ html, body {
         box-shadow: var(--glow);
     }
 
-/* ===== LOADING ===== */
 .loading-ring {
     width: 48px;
     height: 48px;
@@ -418,7 +411,6 @@ html, body {
     }
 }
 
-/* ===== APOD ===== */
 .apod-card {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -512,7 +504,6 @@ html, body {
     max-height: 320px;
 }
 
-/* ===== ASTEROIDS ===== */
 .asteroids-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -613,7 +604,6 @@ html, body {
     letter-spacing: 2px;
 }
 
-/* ===== ISS ===== */
 .iss-layout {
     display: grid;
     grid-template-columns: 1fr 320px;
@@ -628,7 +618,6 @@ html, body {
     background: var(--bg2);
 }
 
-/* Fix Leaflet dark mode */
 .leaflet-container {
     background: #0c1a33 !important;
 }
@@ -727,7 +716,6 @@ html, body {
         border-bottom: none;
     }
 
-/* ===== FAVORITES ===== */
 .favorites-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -803,7 +791,6 @@ html, body {
     margin-bottom: 16px;
 }
 
-/* ===== GALLERY ===== */
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -868,7 +855,6 @@ html, body {
     margin-bottom: 4px;
 }
 
-/* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -886,7 +872,6 @@ html, body {
         background: var(--accent);
     }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
     .apod-card {
         grid-template-columns: 1fr;
