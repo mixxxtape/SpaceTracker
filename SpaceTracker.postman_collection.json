@@ -1,0 +1,166 @@
+{
+  "info": {
+    "_postman_id": "7bce00bf-9810-4133-b233-609281e8aa45",
+    "name": "LibraryAPI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54385422",
+    "_collection_link": "https://go.postman.co/collection/54385422-7bce00bf-9810-4133-b233-609281e8aa45?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "APOD",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/apod",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "apod"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Asteroids",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/asteroids?startDate=2026-06-21&endDate=2026-06-24",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "asteroids"
+          ],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2026-06-21"
+            },
+            {
+              "key": "endDate",
+              "value": "2026-06-24"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "ISS",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/iss/position",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "iss",
+            "position"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Favorites",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/favorites",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "favorites"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "AddUser",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"username\": \"TestUser\",\r\n  \"email\": \"testUser@gmail.com\",\r\n  \"password\": \"123456\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/auth/register",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "DeleteFromFavourites",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/favorites/54",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "favorites",
+            "54"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
